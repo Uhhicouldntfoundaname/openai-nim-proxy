@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // NVIDIA NIM API configuration
 const NIM_API_BASE = process.env.NIM_API_BASE || 'https://integrate.api.nvidia.com/v1';
@@ -238,6 +238,29 @@ app.all('*', (req, res) => {
       code: 404
     }
   });
+});
+
+// JSON error handler for body-parser errors (must come after routes)
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: {
+        message: 'Payload too large',
+        type: 'invalid_request_error',
+        code: 413
+      }
+    });
+  }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: {
+        message: 'Invalid JSON body',
+        type: 'invalid_request_error',
+        code: 400
+      }
+    });
+  }
+  next(err);
 });
 
 app.listen(PORT, () => {
